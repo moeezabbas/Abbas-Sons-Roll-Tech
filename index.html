@@ -892,122 +892,59 @@
 // ============================================
 
 async function syncWithGoogleSheets() {
-  showAlert('🔄 Connecting to your live ledger...', 'info');
+  showAlert('🔄 Testing connection...', 'info');
   
-  // ⚠️ REPLACE THIS WITH YOUR ACTUAL WEB APP URL ⚠️
-  const webAppUrl = 'https://script.google.com/macros/s/AKfycbwBtnFvO3F8Trp-ap7UgT4UgTjDnFxzMlqbO8k406IBRcEvDz-n9XRoh3PNTAb1jkVfCw/exec';
+  // ⚠️ REPLACE THIS WITH YOUR ACTUAL SCRIPT ID
+  const webAppUrl = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+  
+  console.log('Trying to fetch from:', webAppUrl);
   
   try {
-    console.log('Fetching real-time customer data from:', webAppUrl);
+    // Add timestamp to avoid caching
+    const urlWithTimestamp = webAppUrl + '?t=' + new Date().getTime();
+    console.log('Final URL:', urlWithTimestamp);
     
-    const response = await fetch(webAppUrl);
+    const response = await fetch(urlWithTimestamp);
+    console.log('Response status:', response.status);
+    console.log('Response ok:', response.ok);
     
     if (!response.ok) {
-      throw new Error(`Failed to fetch: ${response.status}`);
+      throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
     }
     
-    const data = await response.json();
-    console.log('Real-time data received:', data);
+    const text = await response.text();
+    console.log('Raw response text:', text.substring(0, 500));
+    
+    const data = JSON.parse(text);
+    console.log('Parsed data:', data);
     
     if (data.success && data.customers && data.customers.length > 0) {
-      // Update app data with real customers
       appData.customers = data.customers;
       saveAppData();
       loadCustomerDropdown();
       
-      showAlert(`✅ Live sync! Loaded ${data.customers.length} customers with current balances`, 'success');
-      
-      // Update sync status with timestamp
-      const now = new Date().toLocaleTimeString();
-      document.getElementById('syncStatus').textContent = `Synced ${now}`;
+      showAlert(`✅ Live sync! Loaded ${data.customers.length} customers`, 'success');
+      document.getElementById('syncStatus').textContent = `Synced ${new Date().toLocaleTimeString()}`;
       
     } else {
-      throw new Error(data.message || 'No customer data received');
+      throw new Error(data.message || 'No customers in response');
     }
     
   } catch (error) {
-    console.error('Real-time sync error:', error);
-    showAlert('⚠️ Using cached data. Live sync failed: ' + error.message, 'warning');
+    console.error('❌ Full error:', error);
+    showAlert('❌ Sync failed: ' + error.message, 'danger');
     
-    // Fallback to cached data
+    // Open browser console to see detailed error
+    console.log('=== DEBUG INFO ===');
+    console.log('Web App URL:', webAppUrl);
+    console.log('Error details:', error);
+    
+    // Fallback to demo data
     if (appData.customers.length === 0) {
       loadFallbackCustomers();
     }
   }
 }
-
-function loadFallbackCustomers() {
-  // Fallback to demo data if no cached data
-  const fallbackCustomers = [
-    { name: "Batala Steel", address: "Steel Mill", balance: 242450, drCr: "DR" },
-    { name: "Adnan Traders", address: "Scrape Dealer", balance: 150000, drCr: "DR" },
-    { name: "Ali Oil", address: "H Oil Supplier", balance: 75000, drCr: "DR" },
-    { name: "Shehzad", address: "Magenize Supplier", balance: 185000, drCr: "DR" },
-    { name: "Waseem Oil", address: "H Oil Dealer", balance: 92000, drCr: "DR" }
-  ];
-  
-  appData.customers = fallbackCustomers;
-  saveAppData();
-  loadCustomerDropdown();
-}
-
-function loadCustomerDropdown() {
-  const select = document.getElementById('customerSelect');
-  select.innerHTML = '<option value="">-- Select Customer --</option>';
-  
-  appData.customers.forEach((customer, index) => {
-    const option = document.createElement('option');
-    option.value = index;
-    
-    // Show balance in dropdown
-    const balanceText = formatCurrency(customer.balance);
-    const drCrSymbol = customer.drCr === 'CR' ? '🟢' : '🔴';
-    
-    option.textContent = `${customer.name} - ${balanceText} ${drCrSymbol}`;
-    option.title = `Balance: ${balanceText} (${customer.drCr})`;
-    
-    select.appendChild(option);
-  });
-  
-  // Update sync status display
-  const customerCount = appData.customers.length;
-  document.getElementById('syncStatus').textContent = `${customerCount} customers loaded`;
-}
-
-function loadCustomerData() {
-  const select = document.getElementById('customerSelect');
-  const index = select.value;
-  
-  if (index !== '') {
-    const customer = appData.customers[index];
-    document.getElementById('customerName').value = customer.name;
-    document.getElementById('customerAddress').value = customer.address || '';
-    document.getElementById('previousBalance').value = customer.balance || 0;
-    
-    // Show DR/CR status
-    const balanceField = document.getElementById('previousBalance');
-    if (customer.drCr === 'CR') {
-      balanceField.style.color = '#2e7d32';
-      balanceField.style.fontWeight = 'bold';
-    } else {
-      balanceField.style.color = '#c62828';
-      balanceField.style.fontWeight = 'bold';
-    }
-  } else {
-    document.getElementById('customerName').value = '';
-    document.getElementById('customerAddress').value = '';
-    document.getElementById('previousBalance').value = 0;
-    document.getElementById('previousBalance').style.color = '';
-    document.getElementById('previousBalance').style.fontWeight = '';
-  }
-}
-
-// Auto-sync every 5 minutes when on create tab
-setInterval(() => {
-  if (document.getElementById('createTab').style.display !== 'none') {
-    syncWithGoogleSheets();
-  }
-}, 5 * 60 * 1000);
         function extractSheetId(url) {
     if (!url) return null;
     const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -1461,6 +1398,7 @@ setInterval(() => {
     </script>
 </body>
 </html>
+
 
 
 
