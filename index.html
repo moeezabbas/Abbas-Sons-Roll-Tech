@@ -570,7 +570,7 @@
             <button class="tab-btn" onclick="switchTab('settings')">
                 ⚙️ Settings
             </button>
-            <button class="tab-btn" onclick="syncWithGoogleSheets()">
+            <button class="tab-btn" onclick="">
                 🔄 Sync Data
             </button>
         </div>
@@ -1294,75 +1294,107 @@
         // ============================================
 
         async function syncWithGoogleSheets() {
+    showAlert('Analyzing your transaction ledger...', 'info');
+    
     const url = appData.settings.googleSheetUrl;
     const sheetId = extractSheetId(url);
     
     if (!sheetId) {
-        showAlert('Invalid Google Sheets URL', 'danger');
+        showAlert('❌ Invalid Google Sheets URL', 'danger');
         return;
     }
     
-    showAlert('Fetching customer data from your ledger...', 'info');
-    
     try {
-        // Using Google Sheets JSON API
-        const apiUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+        showAlert('📊 Processing your transaction data...', 'info');
         
-        console.log('Fetching from:', apiUrl);
-        
+        const apiUrl = `https://opensheet.elk.sh/${sheetId}/1`;
         const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error('Failed to fetch data');
-        }
         
-        const text = await response.text();
-        console.log('Raw response:', text.substring(0, 200));
+        if (!response.ok) throw new Error('Failed to fetch data');
         
-        // Clean the response (remove extra characters)
-        const jsonData = JSON.parse(text.replace(/^.*?{/, '{').replace(/\);$/, ''));
+        const data = await response.json();
+        console.log('Raw transaction data:', data);
         
         const customers = [];
-        const rows = jsonData.table.rows;
+        const customerMap = new Map();
         
-        console.log('Total rows found:', rows.length);
-        
-        // Start from row 1 to skip header (assuming row 0 is header)
-        for (let i = 1; i < rows.length; i++) {
-            const row = rows[i];
-            if (row.c && row.c.length > 0) {
-                const customer = {
-                    name: row.c[0] ? (row.c[0].v || '') : '',
-                    address: row.c[1] ? (row.c[1].v || '') : '',
-                    balance: row.c[2] ? (parseFloat(row.c[2].v) || 0) : 0
-                };
-                
-                // Only add if customer has a name
-                if (customer.name && customer.name.trim() !== '') {
-                    customers.push(customer);
-                    console.log('Added customer:', customer);
-                }
+        data.forEach(row => {
+            // Extract customer name from description column
+            const description = row['Description'] || row['DESCRIPTION'] || row['desc'] || '';
+            const balanceStr = row['Balance (PKR)'] || row['Balance'] || row['BALANCE'] || '0';
+            const creditStr = row['Credit(PKR)'] || row['Credit'] || row['CREDIT'] || '0';
+            const debitStr = row['Debit(PKR)'] || row['Debit'] || row['DEBIT'] || '0';
+            
+            // Clean and extract customer name from description
+            let customerName = extractCustomerName(description);
+            
+            // Clean balance amount (remove "Rs." and commas)
+            let balance = cleanAmount(balanceStr);
+            
+            // If no balance, try to calculate from last credit/debit
+            if (balance === 0) {
+                const credit = cleanAmount(creditStr);
+                const debit = cleanAmount(debitStr);
+                balance = credit - debit;
             }
+            
+            if (customerName && customerName.trim() !== '' && !customerMap.has(customerName.trim())) {
+                customerMap.set(customerName.trim(), true);
+                
+                customers.push({
+                    name: customerName.trim(),
+                    address: '', // Your sheet doesn't have addresses
+                    balance: balance
+                });
+            }
+        });
+        
+        console.log('Extracted customers:', customers);
+        
+        if (customers.length === 0) {
+            // Try alternative column names
+            data.forEach(row => {
+                Object.keys(row).forEach(key => {
+                    const value = row[key];
+                    if (typeof value === 'string' && value.length > 3) {
+                        const possibleName = extractCustomerName(value);
+                        if (possibleName && !customerMap.has(possibleName)) {
+                            customerMap.set(possibleName, true);
+                            customers.push({
+                                name: possibleName,
+                                address: '',
+                                balance: 0
+                            });
+                        }
+                    }
+                });
+            });
         }
         
-        appData.customers = customers;
+        if (customers.length === 0) {
+            showAlert('❌ Could not extract customer names. Using demo data.', 'warning');
+            // Fallback to demo
+            const demoCustomers = [
+                { name: "Chilled Roll Polish", address: "", balance: 242450 },
+                { name: "Steel Mill Customer", address: "", balance: 150000 },
+                { name: "Metal Works Ltd", address: "", balance: 75000 }
+            ];
+            appData.customers = demoCustomers;
+        } else {
+            appData.customers = customers;
+            showAlert(`✅ Found ${customers.length} customers in your ledger`, 'success');
+        }
+        
         saveAppData();
         loadCustomerDropdown();
         
-        if (customers.length > 0) {
-            showAlert(`✅ Success! Loaded ${customers.length} customers from your ledger`, 'success');
-        } else {
-            showAlert('⚠️ No customer data found. Check your sheet format.', 'warning');
-        }
-        
     } catch (error) {
-        console.error('Google Sheets sync error:', error);
-        showAlert('❌ Error fetching data. Using demo customers for now.', 'danger');
+        console.error('Sync error:', error);
+        showAlert('❌ Error processing ledger. Using demo customers.', 'danger');
         
-        // Fallback to demo data
         const demoCustomers = [
-            { name: "Ali Ahmed", address: "Karachi, Pakistan", balance: 1500.00 },
-            { name: "Fatima Khan", address: "Lahore, Pakistan", balance: 0.00 },
-            { name: "Usman Malik", address: "Islamabad, Pakistan", balance: 2500.75 }
+            { name: "Chilled Roll Polish", address: "", balance: 242450 },
+            { name: "Steel Industry Client", address: "", balance: 150000 }
         ];
         appData.customers = demoCustomers;
         saveAppData();
@@ -1370,8 +1402,44 @@
     }
 }
 
+// Helper function to extract customer names from descriptions
+function extractCustomerName(description) {
+    if (!description) return '';
+    
+    // Remove common product terms and keep potential customer names
+    let cleanName = description
+        .replace(/chilled roll polish/gi, '')
+        .replace(/chilled rolls/gi, '')
+        .replace(/sale/gi, '')
+        .replace(/rs\./gi, '')
+        .replace(/[0-9,\.]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    
+    // If what remains looks like a name/company (more than 2 characters)
+    if (cleanName.length > 2) {
+        return cleanName;
+    }
+    
+    return '';
+}
+
+// Helper function to clean amount strings
+function cleanAmount(amountStr) {
+    if (!amountStr) return 0;
+    
+    // Remove "Rs.", commas, spaces and convert to number
+    const clean = amountStr.toString()
+        .replace(/rs\./gi, '')
+        .replace(/rs,/gi, '')
+        .replace(/,/g, '')
+        .replace(/\s/g, '')
+        .trim();
+    
+    return parseFloat(clean) || 0;
+}
+
         function extractSheetId(url) {
-    // Extract sheet ID from Google Sheets URL
     const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
     return match ? match[1] : null;
 }
@@ -1446,4 +1514,5 @@
     </script>
 </body>
 </html>
+
 
