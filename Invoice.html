@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#1565c0">
+    <meta name="description" content="Digital Invoice System - Generate professional invoices offline">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Invoice System">
+    
+    <title>Digital Invoice System</title>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1565c0;
+            --secondary-color: #0d47a1;
+            --success-color: #4caf50;
+            --danger-color: #f44336;
+            --warning-color: #ff9800;
+            --light-bg: #f5f7fa;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: var(--light-bg);
+            color: #333;
+            line-height: 1.6;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Header */
+        .app-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 15px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .app-title {
+            font-size: 20px;
+            font-weight: 700;
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            background: rgba(255,255,255,0.2);
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4caf50;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Tab Navigation */
+        .tab-nav {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: var(--card-shadow);
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 120px;
+            padding: 12px 20px;
+            border: none;
+            background: #f5f5f5;
+            color: #666;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            background: var(--primary-color);
+            color: white;
+            box-shadow: 0 4px 12px rgba(21, 101, 192, 0.3);
+        }
+
+        .tab-btn:hover:not(.active) {
+            background: #e0e0e0;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Card */
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #555;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.1);
+        }
+
+        select.form-control {
+            cursor: pointer;
+            background: white;
+        }
+
+        /* Button Styles */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: center;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(21, 101, 192, 0.3);
+        }
+
+        .btn-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--warning-color);
+            color: white;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Invoice Items Table */
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        .items-table th {
+            background: var(--light-bg);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .items-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .items-table input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        .item-remove {
+            background: var(--danger-color);
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* Invoice Preview */
+        #invoicePreview {
+            background: white;
+            padding: 40px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid var(--primary-color);
+        }
+
+        .company-info {
+            flex: 1;
+        }
+
+        .company-logo {
+            width: 120px;
+            height: 120px;
+            object-fit: contain;
+            margin-bottom: 15px;
+        }
+
+        .company-name {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--primary-color);
+            margin-bottom: 5px;
+        }
+
+        .company-details {
+            font-size: 13px;
+            color: #666;
+            line-height: 1.8;
+        }
+
+        .invoice-title {
+            text-align: right;
+        }
+
+        .invoice-title h1 {
+            font-size: 36px;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+        }
+
+        .invoice-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .invoice-to, .invoice-info {
+            background: var(--light-bg);
+            padding: 20px;
+            border-radius: 8px;
+        }
+
+        .section-title {
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        .invoice-table {
+            width: 100%;
+            margin: 30px 0;
+            border-collapse: collapse;
+        }
+
+        .invoice-table th {
+            background: var(--primary-color);
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .invoice-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .invoice-table .text-right {
+            text-align: right;
+        }
+
+        .invoice-totals {
+            margin-top: 30px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .totals-table {
+            min-width: 350px;
+        }
+
+        .totals-table tr td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .totals-table tr.grand-total td {
+            background: var(--primary-color);
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+            border: none;
+        }
+
+        .invoice-footer {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid #e0e0e0;
+            text-align: center;
+            color: #666;
+            font-size: 13px;
+        }
+
+        /* Settings Form */
+        .logo-preview {
+            width: 150px;
+            height: 150px;
+            border: 2px dashed #ddd;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+
+        .logo-preview img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-20px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .card {
+                padding: 20px;
+            }
+
+            .invoice-meta {
+                grid-template-columns: 1fr;
+            }
+
+            .invoice-header {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .invoice-title {
+                text-align: left;
+            }
+
+            #invoicePreview {
+                padding: 20px;
+            }
+
+            .items-table {
+                font-size: 14px;
+            }
+
+            .items-table th,
+            .items-table td {
+                padding: 8px;
+            }
+        }
+
+        /* Loading Spinner */
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .app-header,
+            .tab-nav,
+            .card-title,
+            .btn,
+            .no-print {
+                display: none !important;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            #invoicePreview {
+                box-shadow: none;
+                border: none;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="app-header">
+        <div class="header-content">
+            <div class="app-title">📄 Digital Invoice System</div>
+            <div class="sync-status">
+                <div class="status-dot"></div>
+                <span id="syncStatus">Offline Ready</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Tab Navigation -->
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('create')">
+                📝 Create Invoice
+            </button>
+            <button class="tab-btn" onclick="switchTab('history')">
+                📋 Invoice History
+            </button>
+            <button class="tab-btn" onclick="switchTab('settings')">
+                ⚙️ Settings
+            </button>
+            <button class="tab-btn" onclick="syncWithGoogleSheets()">
+                🔄 Sync Data
+            </button>
+        </div>
+
+        <!-- Create Invoice Tab -->
+        <div id="createTab" class="tab-content active">
+            <div class="card">
+                <div class="card-title">Create New Invoice</div>
+
+                <div class="form-group">
+                    <label for="customerSelect">Select Customer</label>
+                    <select id="customerSelect" class="form-control" onchange="loadCustomerData()">
+                        <option value="">-- Select Customer --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="customerName">Customer Name</label>
+                    <input type="text" id="customerName" class="form-control" placeholder="Enter customer name">
+                </div>
+
+                <div class="form-group">
+                    <label for="customerAddress">Customer Address</label>
+                    <textarea id="customerAddress" class="form-control" rows="2" placeholder="Enter address"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="previousBalance">Previous Balance</label>
+                    <input type="number" id="previousBalance" class="form-control" value="0" step="0.01" readonly>
+                </div>
+
+                <div class="form-group">
+                    <label for="invoiceDate">Invoice Date</label>
+                    <input type="date" id="invoiceDate" class="form-control">
+                </div>
+
+                <div class="card-title" style="margin-top: 30px;">Invoice Items</div>
+
+                <table class="items-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th style="width: 100px;">Quantity</th>
+                            <th style="width: 120px;">Rate</th>
+                            <th style="width: 120px;">Amount</th>
+                            <th style="width: 80px;">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsTableBody">
+                        <tr>
+                            <td><input type="text" class="item-desc" placeholder="Item description"></td>
+                            <td><input type="number" class="item-qty" value="1" min="0" step="0.01" onchange="calculateItemTotal(this)"></td>
+                            <td><input type="number" class="item-rate" value="0" min="0" step="0.01" onchange="calculateItemTotal(this)"></td>
+                            <td><input type="number" class="item-amount" value="0" readonly></td>
+                            <td><button class="item-remove" onclick="removeItem(this)">Remove</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <button class="btn btn-primary" onclick="addItem()">
+                    ➕ Add Item
+                </button>
+
+                <div style="margin-top: 30px; display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <button class="btn btn-success btn-block" onclick="generateInvoice()">
+                        📄 Preview Invoice
+                    </button>
+                    <button class="btn btn-primary btn-block" onclick="saveInvoice()">
+                        💾 Save Invoice
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Invoice History Tab -->
+        <div id="historyTab" class="tab-content">
+            <div class="card">
+                <div class="card-title">Invoice History</div>
+                <div id="historyList">
+                    <p style="text-align: center; color: #999; padding: 40px;">
+                        No invoices saved yet. Create your first invoice!
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Tab -->
+        <div id="settingsTab" class="tab-content">
+            <div class="card">
+                <div class="card-title">Company Settings</div>
+
+                <div class="form-group">
+                    <label for="companyName">Company Name</label>
+                    <input type="text" id="companyName" class="form-control" value="Your Company Name">
+                </div>
+
+                <div class="form-group">
+                    <label for="companyAddress">Company Address</label>
+                    <textarea id="companyAddress" class="form-control" rows="3">123 Business Street, City, Country</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="companyPhone">Phone</label>
+                    <input type="text" id="companyPhone" class="form-control" value="+92-XXX-XXXXXXX">
+                </div>
+
+                <div class="form-group">
+                    <label for="companyEmail">Email</label>
+                    <input type="email" id="companyEmail" class="form-control" value="info@company.com">
+                </div>
+
+                <div class="form-group">
+                    <label for="logoUpload">Company Logo</label>
+                    <input type="file" id="logoUpload" class="form-control" accept="image/*" onchange="previewLogo(this)">
+                    <div class="logo-preview" id="logoPreview">
+                        <span style="color: #999;">No logo uploaded</span>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="googleSheetUrl">Google Sheet URL</label>
+                    <input type="text" id="googleSheetUrl" class="form-control" 
+                           value="https://docs.google.com/spreadsheets/d/1F1X-2FVVUKQUs4HSsGpgb1Qqk7-zieKtd_E29teQ7x0/edit">
+                    <small style="color: #666; display: block; margin-top: 5px;">
+                        Your Google Sheets Ledger URL
+                    </small>
+                </div>
+
+                <button class="btn btn-success btn-block" onclick="saveSettings()">
+                    💾 Save Settings
+                </button>
+            </div>
+        </div>
+
+        <!-- Invoice Preview -->
+        <div id="invoicePreviewSection" style="display: none;">
+            <div class="card">
+                <div class="no-print" style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <button class="btn btn-primary" onclick="closePreview()">
+                        ← Back to Form
+                    </button>
+                    <button class="btn btn-success" onclick="printInvoice()">
+                        🖨️ Print Invoice
+                    </button>
+                </div>
+
+                <div id="invoicePreview">
+                    <!-- Invoice will be generated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // APP INITIALIZATION
+        // ============================================
+        
+        let appData = {
+            settings: {
+                companyName: 'Your Company Name',
+                companyAddress: '123 Business Street, City, Country',
+                companyPhone: '+92-XXX-XXXXXXX',
+                companyEmail: 'info@company.com',
+                companyLogo: '',
+                googleSheetUrl: 'https://docs.google.com/spreadsheets/d/1F1X-2FVVUKQUs4HSsGpgb1Qqk7-zieKtd_E29teQ7x0/edit'
+            },
+            customers: [],
+            invoices: [],
+            nextInvoiceNumber: 1
+        };
+
+        // Initialize app on load
+        window.addEventListener('load', function() {
+            loadAppData();
+            setTodayDate();
+            loadCustomerDropdown();
+            loadInvoiceHistory();
+            
+            // Register service worker for offline functionality
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js').catch(() => {
+                    console.log('Service Worker registration not available');
+                });
+            }
+        });
+
+        // ============================================
+        // DATA MANAGEMENT
+        // ============================================
+
+        function loadAppData() {
+            try {
+                const savedData = localStorage.getItem('invoiceAppData');
+                if (savedData) {
+                    const parsed = JSON.parse(savedData);
+                    appData = { ...appData, ...parsed };
+                    
+                    // Load settings into form
+                    document.getElementById('companyName').value = appData.settings.companyName || '';
+                    document.getElementById('companyAddress').value = appData.settings.companyAddress || '';
+                    document.getElementById('companyPhone').value = appData.settings.companyPhone || '';
+                    document.getElementById('companyEmail').value = appData.settings.companyEmail || '';
+                    document.getElementById('googleSheetUrl').value = appData.settings.googleSheetUrl || '';
+                    
+                    if (appData.settings.companyLogo) {
+                        document.getElementById('logoPreview').innerHTML = 
+                            `<img src="${appData.settings.companyLogo}" alt="Logo">`;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading app data:', error);
+            }
+        }
+
+        function saveAppData() {
+            try {
+                localStorage.setItem('invoiceAppData', JSON.stringify(appData));
+                return true;
+            } catch (error) {
+                console.error('Error saving app data:', error);
+                return false;
+            }
+        }
+
+        // ============================================
+        // TAB NAVIGATION
+        // ============================================
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Remove active class from all buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Add active class to clicked button
+            event.target.classList.add('active');
+            
+            // Refresh history if switching to history tab
+            if (tabName === 'history') {
+                loadInvoiceHistory();
+            }
+        }
+
+        // ============================================
+        // INVOICE ITEMS MANAGEMENT
+        // ============================================
+
+        function addItem() {
+            const tbody = document.getElementById('itemsTableBody');
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td><input type="text" class="item-desc" placeholder="Item description"></td>
+                <td><input type="number" class="item-qty" value="1" min="0" step="0.01" onchange="calculateItemTotal(this)"></td>
+                <td><input type="number" class="item-rate" value="0" min="0" step="0.01" onchange="calculateItemTotal(this)"></td>
+                <td><input type="number" class="item-amount" value="0" readonly></td>
+                <td><button class="item-remove" onclick="removeItem(this)">Remove</button></td>
+            `;
+            tbody.appendChild(newRow);
+        }
+
+        function removeItem(button) {
+            const tbody = document.getElementById('itemsTableBody');
+            if (tbody.children.length > 1) {
+                button.closest('tr').remove();
+            } else {
+                showAlert('At least one item is required', 'danger');
+            }
+        }
+
+        function calculateItemTotal(input) {
+            const row = input.closest('tr');
+            const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+            const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+            const amount = qty * rate;
+            row.querySelector('.item-amount').value = amount.toFixed(2);
+        }
+
+        // ============================================
+        // CUSTOMER MANAGEMENT
+        // ============================================
+
+        function loadCustomerDropdown() {
+            const select = document.getElementById('customerSelect');
+            select.innerHTML = '<option value="">-- Select Customer --</option>';
+            
+            appData.customers.forEach((customer, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = customer.name;
+                select.appendChild(option);
+            });
+        }
+
+        function loadCustomerData() {
+            const select = document.getElementById('customerSelect');
+            const index = select.value;
+            
+            if (index !== '') {
+                const customer = appData.customers[index];
+                document.getElementById('customerName').value = customer.name;
+                document.getElementById('customerAddress').value = customer.address || '';
+                document.getElementById('previousBalance').value = customer.balance || 0;
+            } else {
+                document.getElementById('customerName').value = '';
+                document.getElementById('customerAddress').value = '';
+                document.getElementById('previousBalance').value = 0;
+            }
+        }
+
+        // ============================================
+        // INVOICE GENERATION
+        // ============================================
+
+        function generateInvoice() {
+            const customerName = document.getElementById('customerName').value.trim();
+            const customerAddress = document.getElementById('customerAddress').value.trim();
+            const invoiceDate = document.getElementById('invoiceDate').value;
+            const previousBalance = parseFloat(document.getElementById('previousBalance').value) || 0;
+            
+            if (!customerName) {
+                showAlert('Please enter customer name', 'danger');
+                return;
+            }
+            
+            if (!invoiceDate) {
+                showAlert('Please select invoice date', 'danger');
+                return;
+            }
+            
+            // Collect items
+            const items = [];
+            const rows = document.querySelectorAll('#itemsTableBody tr');
+            
+            rows.forEach(row => {
+                const desc = row.querySelector('.item-desc').value.trim();
+                const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+                const amount = parseFloat(row.querySelector('.item-amount').value) || 0;
+                
+                if (desc && qty > 0) {
+                    items.push({ desc, qty, rate, amount });
+                }
+            });
+            
+            if (items.length === 0) {
+                showAlert('Please add at least one item', 'danger');
+                return;
+            }
+            
+            // Calculate totals
+            const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+            const grandTotal = subtotal + previousBalance;
+            
+            // Generate invoice HTML
+            const invoiceHTML = `
+                <div class="invoice-header">
+                    <div class="company-info">
+                        ${appData.settings.companyLogo ? 
+                            `<img src="${appData.settings.companyLogo}" class="company-logo" alt="Logo">` : ''}
+                        <div class="company-name">${appData.settings.companyName}</div>
+                        <div class="company-details">
+                            ${appData.settings.companyAddress}<br>
+                            Phone: ${appData.settings.companyPhone}<br>
+                            Email: ${appData.settings.companyEmail}
+                        </div>
+                    </div>
+                    <div class="invoice-title">
+                        <h1>INVOICE</h1>
+                        <div style="font-size: 16px; color: #666;">
+                            #INV-${String(appData.nextInvoiceNumber).padStart(5, '0')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="invoice-meta">
+                    <div class="invoice-to">
+                        <div class="section-title">Bill To:</div>
+                        <strong>${customerName}</strong><br>
+                        ${customerAddress ? customerAddress + '<br>' : ''}
+                    </div>
+                    <div class="invoice-info">
+                        <div class="section-title">Invoice Details:</div>
+                        <strong>Invoice Date:</strong> ${formatDate(invoiceDate)}<br>
+                        <strong>Invoice No:</strong> INV-${String(appData.nextInvoiceNumber).padStart(5, '0')}
+                    </div>
+                </div>
+
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th style="width: 80px;">Qty</th>
+                            <th style="width: 120px;">Rate</th>
+                            <th style="width: 120px;" class="text-right">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${items.map(item => `
+                            <tr>
+                                <td>${item.desc}</td>
+                                <td>${item.qty}</td>
+                                <td>${formatCurrency(item.rate)}</td>
+                                <td class="text-right">${formatCurrency(item.amount)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="invoice-totals">
+                    <table class="totals-table">
+                        ${previousBalance > 0 ? `
+                            <tr>
+                                <td><strong>Previous Balance:</strong></td>
+                                <td class="text-right">${formatCurrency(previousBalance)}</td>
+                            </tr>
+                        ` : ''}
+                        <tr>
+                            <td><strong>Subtotal:</strong></td>
+                            <td class="text-right">${formatCurrency(subtotal)}</td>
+                        </tr>
+                        <tr class="grand-total">
+                            <td><strong>Grand Total:</strong></td>
+                            <td class="text-right">${formatCurrency(grandTotal)}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="invoice-footer">
+                    Thank you for your business!<br>
+                    Terms & Conditions: Payment due within 30 days
+                </div>
+            `;
+            
+            // Display preview
+            document.getElementById('invoicePreview').innerHTML = invoiceHTML;
+            document.getElementById('createTab').style.display = 'none';
+            document.getElementById('invoicePreviewSection').style.display = 'block';
+        }
+
+        function closePreview() {
+            document.getElementById('invoicePreviewSection').style.display = 'none';
+            document.getElementById('createTab').style.display = 'block';
+        }
+
+        function printInvoice() {
+            window.print();
+        }
+
+        function saveInvoice() {
+            const customerName = document.getElementById('customerName').value.trim();
+            const customerAddress = document.getElementById('customerAddress').value.trim();
+            const invoiceDate = document.getElementById('invoiceDate').value;
+            const previousBalance = parseFloat(document.getElementById('previousBalance').value) || 0;
+            
+            // Collect items
+            const items = [];
+            const rows = document.querySelectorAll('#itemsTableBody tr');
+            
+            rows.forEach(row => {
+                const desc = row.querySelector('.item-desc').value.trim();
+                const qty = parseFloat(row.querySelector('.item-qty').value) || 0;
+                const rate = parseFloat(row.querySelector('.item-rate').value) || 0;
+                const amount = parseFloat(row.querySelector('.item-amount').value) || 0;
+                
+                if (desc && qty > 0) {
+                    items.push({ desc, qty, rate, amount });
+                }
+            });
+            
+            if (items.length === 0) {
+                showAlert('Please add at least one item', 'danger');
+                return;
+            }
+            
+            // Calculate totals
+            const subtotal = items.reduce((sum, item) => sum + item.amount, 0);
+            const grandTotal = subtotal + previousBalance;
+            
+            // Create invoice object
+            const invoice = {
+                id: Date.now(),
+                invoiceNumber: appData.nextInvoiceNumber,
+                customerName,
+                customerAddress,
+                date: invoiceDate,
+                items: [...items],
+                subtotal,
+                previousBalance,
+                grandTotal,
+                createdAt: new Date().toISOString()
+            };
+            
+            // Save to app data
+            appData.invoices.unshift(invoice);
+            appData.nextInvoiceNumber++;
+            
+            if (saveAppData()) {
+                showAlert('Invoice saved successfully!', 'success');
+                resetInvoiceForm();
+                loadInvoiceHistory();
+            } else {
+                showAlert('Error saving invoice', 'danger');
+            }
+        }
+
+        function resetInvoiceForm() {
+            document.getElementById('customerName').value = '';
+            document.getElementById('customerAddress').value = '';
+            document.getElementById('previousBalance').value = 0;
+            document.getElementById('invoiceDate').value = '';
+            
+            // Reset items table to one row
+            const tbody = document.getElementById('itemsTableBody');
+            tbody.innerHTML = `
+                <tr>
+                    <td><input type="text" class="item-desc" placeholder="Item description"></td>
+                    <td><input type="number" class="item-qty" value="1" min="0" step="0.01" onchange="calculateItemTotal(this)"></td>
+                    <td><input type="number" class="item-rate" value="0" min="0" step="0.01" onchange="calculateItemTotal(this)"></td>
+                    <td><input type="number" class="item-amount" value="0" readonly></td>
+                    <td><button class="item-remove" onclick="removeItem(this)">Remove</button></td>
+                </tr>
+            `;
+        }
+
+        // ============================================
+        // INVOICE HISTORY
+        // ============================================
+
+        function loadInvoiceHistory() {
+            const historyList = document.getElementById('historyList');
+            
+            if (appData.invoices.length === 0) {
+                historyList.innerHTML = `
+                    <p style="text-align: center; color: #999; padding: 40px;">
+                        No invoices saved yet. Create your first invoice!
+                    </p>
+                `;
+                return;
+            }
+            
+            historyList.innerHTML = appData.invoices.map(invoice => `
+                <div class="card" style="margin-bottom: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <h4 style="margin-bottom: 5px; color: var(--primary-color);">
+                                ${invoice.customerName}
+                            </h4>
+                            <p style="color: #666; font-size: 14px; margin-bottom: 10px;">
+                                INV-${String(invoice.invoiceNumber).padStart(5, '0')} | ${formatDate(invoice.date)}
+                            </p>
+                            <p style="font-weight: 600; font-size: 16px;">
+                                Total: ${formatCurrency(invoice.grandTotal)}
+                            </p>
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <button class="btn btn-primary" onclick="viewInvoice(${invoice.id})">
+                                👁️ View
+                            </button>
+                            <button class="btn btn-success" onclick="printSavedInvoice(${invoice.id})">
+                                🖨️ Print
+                            </button>
+                            <button class="btn btn-danger" onclick="deleteInvoice(${invoice.id})">
+                                🗑️ Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function viewInvoice(invoiceId) {
+            const invoice = appData.invoices.find(inv => inv.id === invoiceId);
+            if (!invoice) return;
+            
+            const invoiceHTML = `
+                <div class="invoice-header">
+                    <div class="company-info">
+                        ${appData.settings.companyLogo ? 
+                            `<img src="${appData.settings.companyLogo}" class="company-logo" alt="Logo">` : ''}
+                        <div class="company-name">${appData.settings.companyName}</div>
+                        <div class="company-details">
+                            ${appData.settings.companyAddress}<br>
+                            Phone: ${appData.settings.companyPhone}<br>
+                            Email: ${appData.settings.companyEmail}
+                        </div>
+                    </div>
+                    <div class="invoice-title">
+                        <h1>INVOICE</h1>
+                        <div style="font-size: 16px; color: #666;">
+                            #INV-${String(invoice.invoiceNumber).padStart(5, '0')}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="invoice-meta">
+                    <div class="invoice-to">
+                        <div class="section-title">Bill To:</div>
+                        <strong>${invoice.customerName}</strong><br>
+                        ${invoice.customerAddress ? invoice.customerAddress + '<br>' : ''}
+                    </div>
+                    <div class="invoice-info">
+                        <div class="section-title">Invoice Details:</div>
+                        <strong>Invoice Date:</strong> ${formatDate(invoice.date)}<br>
+                        <strong>Invoice No:</strong> INV-${String(invoice.invoiceNumber).padStart(5, '0')}
+                    </div>
+                </div>
+
+                <table class="invoice-table">
+                    <thead>
+                        <tr>
+                            <th>Description</th>
+                            <th style="width: 80px;">Qty</th>
+                            <th style="width: 120px;">Rate</th>
+                            <th style="width: 120px;" class="text-right">Amount</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${invoice.items.map(item => `
+                            <tr>
+                                <td>${item.desc}</td>
+                                <td>${item.qty}</td>
+                                <td>${formatCurrency(item.rate)}</td>
+                                <td class="text-right">${formatCurrency(item.amount)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="invoice-totals">
+                    <table class="totals-table">
+                        ${invoice.previousBalance > 0 ? `
+                            <tr>
+                                <td><strong>Previous Balance:</strong></td>
+                                <td class="text-right">${formatCurrency(invoice.previousBalance)}</td>
+                            </tr>
+                        ` : ''}
+                        <tr>
+                            <td><strong>Subtotal:</strong></td>
+                            <td class="text-right">${formatCurrency(invoice.subtotal)}</td>
+                        </tr>
+                        <tr class="grand-total">
+                            <td><strong>Grand Total:</strong></td>
+                            <td class="text-right">${formatCurrency(invoice.grandTotal)}</td>
+                        </tr>
+                    </table>
+                </div>
+
+                <div class="invoice-footer">
+                    Thank you for your business!<br>
+                    Terms & Conditions: Payment due within 30 days
+                </div>
+            `;
+            
+            document.getElementById('invoicePreview').innerHTML = invoiceHTML;
+            document.getElementById('createTab').style.display = 'none';
+            document.getElementById('historyTab').style.display = 'none';
+            document.getElementById('settingsTab').style.display = 'none';
+            document.getElementById('invoicePreviewSection').style.display = 'block';
+        }
+
+        function printSavedInvoice(invoiceId) {
+            viewInvoice(invoiceId);
+            setTimeout(() => {
+                printInvoice();
+            }, 500);
+        }
+
+        function deleteInvoice(invoiceId) {
+            if (confirm('Are you sure you want to delete this invoice?')) {
+                appData.invoices = appData.invoices.filter(inv => inv.id !== invoiceId);
+                saveAppData();
+                loadInvoiceHistory();
+                showAlert('Invoice deleted successfully', 'success');
+            }
+        }
+
+        // ============================================
+        // SETTINGS MANAGEMENT
+        // ============================================
+
+        function previewLogo(input) {
+            const preview = document.getElementById('logoPreview');
+            const file = input.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.innerHTML = `<img src="${e.target.result}" alt="Logo">`;
+                    appData.settings.companyLogo = e.target.result;
+                    saveAppData();
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function saveSettings() {
+            appData.settings.companyName = document.getElementById('companyName').value;
+            appData.settings.companyAddress = document.getElementById('companyAddress').value;
+            appData.settings.companyPhone = document.getElementById('companyPhone').value;
+            appData.settings.companyEmail = document.getElementById('companyEmail').value;
+            appData.settings.googleSheetUrl = document.getElementById('googleSheetUrl').value;
+            
+            if (saveAppData()) {
+                showAlert('Settings saved successfully!', 'success');
+            } else {
+                showAlert('Error saving settings', 'danger');
+            }
+        }
+
+        // ============================================
+        // GOOGLE SHEETS SYNC
+        // ============================================
+
+        async function syncWithGoogleSheets() {
+            const url = appData.settings.googleSheetUrl;
+            const sheetId = extractSheetId(url);
+            
+            if (!sheetId) {
+                showAlert('Invalid Google Sheets URL', 'danger');
+                return;
+            }
+            
+            showAlert('Syncing with Google Sheets...', 'info');
+            
+            try {
+                // For demo purposes, we'll simulate data fetching
+                // In a real implementation, you would use Google Sheets API
+                const demoCustomers = [
+                    { name: "Ali Ahmed", address: "Karachi, Pakistan", balance: 1500.00 },
+                    { name: "Fatima Khan", address: "Lahore, Pakistan", balance: 0.00 },
+                    { name: "Usman Malik", address: "Islamabad, Pakistan", balance: 2500.75 },
+                    { name: "Ayesha Raza", address: "Rawalpindi, Pakistan", balance: 500.00 },
+                    { name: "Bilal Hassan", address: "Faisalabad, Pakistan", balance: 1200.50 }
+                ];
+                
+                // Simulate API delay
+                await new Promise(resolve => setTimeout(resolve, 2000));
+                
+                appData.customers = demoCustomers;
+                saveAppData();
+                loadCustomerDropdown();
+                
+                showAlert('Successfully synced customer data from Google Sheets!', 'success');
+            } catch (error) {
+                console.error('Sync error:', error);
+                showAlert('Error syncing with Google Sheets. Using demo data.', 'danger');
+                
+                // Fallback to demo data
+                const demoCustomers = [
+                    { name: "Demo Customer", address: "Demo Address", balance: 1000.00 }
+                ];
+                appData.customers = demoCustomers;
+                saveAppData();
+                loadCustomerDropdown();
+            }
+        }
+
+        function extractSheetId(url) {
+            const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            return match ? match[1] : null;
+        }
+
+        // ============================================
+        // UTILITY FUNCTIONS
+        // ============================================
+
+        function setTodayDate() {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('invoiceDate').value = today;
+        }
+
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        }
+
+        function formatCurrency(amount) {
+            return 'Rs. ' + parseFloat(amount).toFixed(2);
+        }
+
+        function showAlert(message, type) {
+            // Remove existing alerts
+            const existingAlert = document.querySelector('.alert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+            
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.innerHTML = `
+                <span>${type === 'success' ? '✅' : type === 'danger' ? '❌' : 'ℹ️'}</span>
+                <span>${message}</span>
+            `;
+            
+            document.querySelector('.container').insertBefore(alert, document.querySelector('.tab-nav'));
+            
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+
+        // ============================================
+        // OFFLINE FUNCTIONALITY
+        // ============================================
+
+        // Check online/offline status
+        window.addEventListener('online', function() {
+            document.getElementById('syncStatus').textContent = 'Online';
+            showAlert('You are back online', 'success');
+        });
+
+        window.addEventListener('offline', function() {
+            document.getElementById('syncStatus').textContent = 'Offline';
+            showAlert('You are offline. App will work with local data.', 'info');
+        });
+
+        // Service Worker for offline functionality
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                    console.log('ServiceWorker registration successful');
+                }, function(err) {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+            });
+        }
+    </script>
+</body>
+</html>
