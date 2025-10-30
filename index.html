@@ -887,58 +887,216 @@
         // SYNC FUNCTION (WORKING VERSION)
         // ============================================
 
-        async function syncWithGoogleSheets() {
-            showAlert('🔄 Loading customer data...', 'info');
+       async function syncWithGoogleSheets() {
+    showAlert('🔄 Connecting to your Google Sheets ledger...', 'info');
+    
+    const url = appData.settings.googleSheetUrl;
+    const sheetId = extractSheetId(url);
+    
+    if (!sheetId) {
+        showAlert('❌ Invalid Google Sheets URL', 'danger');
+        return;
+    }
+    
+    try {
+        // Method 1: Direct CSV export (most reliable)
+        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
+        
+        console.log('Fetching from:', csvUrl);
+        
+        const response = await fetch(csvUrl);
+        
+        if (!response.ok) {
+            throw new Error(`Failed to fetch: ${response.status}`);
+        }
+        
+        const csvText = await response.text();
+        console.log('CSV Data received:', csvText.substring(0, 500));
+        
+        // Parse CSV data
+        const customers = parseCSVData(csvText);
+        
+        if (customers.length === 0) {
+            throw new Error('No customer data found in CSV');
+        }
+        
+        appData.customers = customers;
+        saveAppData();
+        loadCustomerDropdown();
+        
+        showAlert(`✅ Success! Loaded ${customers.length} real customers from your ledger`, 'success');
+        
+    } catch (error) {
+        console.error('Google Sheets sync error:', error);
+        
+        // Try alternative method if first fails
+        await tryAlternativeMethod(sheetId);
+    }
+}
+
+function parseCSVData(csvText) {
+    const customers = [];
+    const customerMap = new Map();
+    
+    try {
+        const rows = csvText.split('\n');
+        console.log('Total rows in CSV:', rows.length);
+        
+        // Skip header row and process each row
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i].trim();
+            if (!row) continue;
             
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const columns = parseCSVRow(row);
+            console.log(`Row ${i}:`, columns);
             
-            try {
-                // Use demo data that matches your business
-                const demoCustomers = [
-                    { 
-                        name: "Chilled Roll Polish", 
-                        address: "Steel Industry Client", 
-                        balance: 242450 
-                    },
-                    { 
-                        name: "Steel Mill Corporation", 
-                        address: "Industrial Zone, Karachi", 
-                        balance: 150000 
-                    },
-                    { 
-                        name: "Metal Fabrication Ltd", 
-                        address: "Factory Area, Lahore", 
-                        balance: 75000 
-                    },
-                    { 
-                        name: "Abbas Steel Works", 
-                        address: "Main Industrial Estate", 
-                        balance: 185000 
-                    },
-                    { 
-                        name: "Precision Metal Co.", 
-                        address: "SITE Area", 
-                        balance: 92000 
-                    }
-                ];
+            // Extract customer information based on your sheet structure
+            const customerInfo = extractCustomerFromRow(columns);
+            
+            if (customerInfo.name && customerInfo.name.trim() !== '' && 
+                !customerMap.has(customerInfo.name.trim())) {
                 
-                appData.customers = demoCustomers;
-                saveAppData();
-                loadCustomerDropdown();
-                
-                showAlert(`✅ Loaded ${demoCustomers.length} customers successfully!`, 'success');
-                
-            } catch (error) {
-                console.error('Sync error:', error);
-                showAlert('✅ Customer data loaded successfully!', 'success');
+                customerMap.set(customerInfo.name.trim(), true);
+                customers.push(customerInfo);
             }
         }
+        
+    } catch (error) {
+        console.error('Error parsing CSV:', error);
+    }
+    
+    return customers;
+}
+
+function parseCSVRow(row) {
+    const columns = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < row.length; i++) {
+        const char = row[i];
+        
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            columns.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    
+    columns.push(current.trim());
+    return columns;
+}
+
+function extractCustomerFromRow(columns) {
+    // Based on your sheet structure, try to find customer name and balance
+    let customerName = '';
+    let balance = 0;
+    
+    // Look for customer name in different columns
+    columns.forEach((col, index) => {
+        const cleanCol = col.replace(/["']/g, '').trim();
+        
+        // Look for patterns that indicate customer names
+        if (cleanCol.length > 2 && 
+            !isNumeric(cleanCol) && 
+            !isDate(cleanCol) &&
+            !cleanCol.match(/^\d+\.?\d*$/) && // Not just numbers
+            !cleanCol.match(/^(rs\.|pkr|weight|qty|rate|sale|debit|credit)/i)) {
+            
+            // This might be a customer name
+            if (!customerName || cleanCol.length > customerName.length) {
+                customerName = cleanCol;
+            }
+        }
+        
+        // Look for balance amounts (typically larger numbers)
+        if (isNumeric(cleanCol)) {
+            const num = parseFloat(cleanCol.replace(/[^\d.-]/g, ''));
+            if (num > balance) {
+                balance = num;
+            }
+        }
+    });
+    
+    return {
+        name: customerName || 'Unknown Customer',
+        address: '',
+        balance: balance
+    };
+}
+
+function isNumeric(str) {
+    return !isNaN(str) && !isNaN(parseFloat(str));
+}
+
+function isDate(str) {
+    return !isNaN(Date.parse(str));
+}
+
+async function tryAlternativeMethod(sheetId) {
+    try {
+        showAlert('🔄 Trying alternative method...', 'info');
+        
+        // Alternative: Use Google Sheets API via proxy
+        const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY`;
+        
+        const response = await fetch(apiUrl);
+        
+        if (response.ok) {
+            const data = await response.json();
+            console.log('Google Sheets API data:', data);
+            
+            if (data.values && data.values.length > 1) {
+                const customers = [];
+                const customerMap = new Map();
+                
+                // Process rows
+                for (let i = 1; i < data.values.length; i++) {
+                    const row = data.values[i];
+                    const customerInfo = extractCustomerFromRow(row);
+                    
+                    if (customerInfo.name && !customerMap.has(customerInfo.name)) {
+                        customerMap.set(customerInfo.name, true);
+                        customers.push(customerInfo);
+                    }
+                }
+                
+                appData.customers = customers;
+                saveAppData();
+                loadCustomerDropdown();
+                showAlert(`✅ Loaded ${customers.length} customers via API`, 'success');
+                return;
+            }
+        }
+        
+        throw new Error('Alternative method also failed');
+        
+    } catch (error) {
+        console.error('Alternative method error:', error);
+        
+        // Final fallback - use demo data but inform user
+        const demoCustomers = [
+            { name: "Chilled Roll Polish", address: "Steel Industry", balance: 242450 },
+            { name: "Steel Mill Corporation", address: "Industrial Zone", balance: 150000 },
+            { name: "Metal Fabrication Ltd", address: "Factory Area", balance: 75000 }
+        ];
+        
+        appData.customers = demoCustomers;
+        saveAppData();
+        loadCustomerDropdown();
+        
+        showAlert('⚠️ Using demo data. Please check your sheet is set to "Anyone with link can view"', 'warning');
+    }
+}
 
         function extractSheetId(url) {
-            const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-            return match ? match[1] : null;
-        }
+    if (!url) return null;
+    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : null;
+}
 
         // ============================================
         // INVOICE GENERATION
@@ -1387,3 +1545,4 @@
     </script>
 </body>
 </html>
+
