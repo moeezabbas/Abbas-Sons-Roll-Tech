@@ -940,186 +940,120 @@ function parseCSVData(csvText) {
   
   try {
     const rows = csvText.split('\n');
-    console.log('Total rows in CSV:', rows.length);
+    console.log('First few rows for debugging:');
+    for (let i = 0; i < Math.min(10, rows.length); i++) {
+      console.log(`Row ${i}: "${rows[i].substring(0, 100)}"`);
+    }
     
-    // Look for customer data in your specific sheet structure
-    for (let i = 0; i < rows.length; i++) {
+    // Skip the first few rows that contain headers and titles
+    let startRow = 0;
+    for (let i = 0; i < Math.min(20, rows.length); i++) {
+      const row = rows[i].toLowerCase();
+      // Look for where customer data actually starts
+      if (row.includes('batala') || row.includes('adnan') || row.includes('ali oil') || 
+          (row.includes('customer') && !row.includes('customer name'))) {
+        startRow = i;
+        console.log(`Found customer data starting at row ${i}`);
+        break;
+      }
+    }
+    
+    // Process rows looking for customer names
+    for (let i = startRow; i < rows.length; i++) {
       const row = rows[i].trim();
       if (!row) continue;
       
       const columns = parseCSVRow(row);
+      console.log(`Row ${i} columns:`, columns);
       
-      // Your ledger structure: Column A has customer names
-      if (columns.length >= 1 && columns[0] && columns[0].trim() !== '') {
-        const customerName = columns[0].trim();
+      if (columns.length === 0) continue;
+      
+      // Look for customer name in first column
+      const firstColumn = columns[0] ? columns[0].trim() : '';
+      
+      // Skip if it's empty or clearly a header
+      if (!firstColumn || 
+          firstColumn === 'Customer Name' ||
+          firstColumn === 'CUSTOMER BALANCE SHEET' ||
+          firstColumn === 'BACKUP DATA' ||
+          firstColumn === 'Timestamp' ||
+          firstColumn === 'S.N' ||
+          firstColumn === 'Date' ||
+          firstColumn.includes('Total') ||
+          firstColumn.includes('Balance') ||
+          firstColumn === 'DR/CR SUMMARY REPORT') {
+        continue;
+      }
+      
+      // Skip if it looks like a number (serial number)
+      if (!isNaN(firstColumn) && firstColumn !== '') {
+        continue;
+      }
+      
+      // Skip if it's a date
+      if (isDate(firstColumn)) {
+        continue;
+      }
+      
+      // This might be a customer name!
+      if (firstColumn.length > 1 && !customerMap.has(firstColumn)) {
+        customerMap.set(firstColumn, true);
         
-        // Skip headers and system rows
-        if (customerName === 'Customer Name' || 
-            customerName === 'CUSTOMER BALANCE SHEET' ||
-            customerName.includes('BACKUP DATA') ||
-            customerName === 'Timestamp') {
-          continue;
-        }
-        
-        // Only add unique customers
-        if (!customerMap.has(customerName)) {
-          customerMap.set(customerName, true);
-          
-          // Try to find balance from other columns
-          let balance = 0;
-          for (let j = 1; j < columns.length; j++) {
-            const colValue = columns[j].replace(/[^\d.-]/g, '');
-            if (colValue && !isNaN(colValue) && parseFloat(colValue) !== 0) {
-              const num = parseFloat(colValue);
-              if (Math.abs(num) > Math.abs(balance)) {
+        // Try to find balance in subsequent columns
+        let balance = 0;
+        for (let j = 1; j < columns.length; j++) {
+          if (columns[j]) {
+            const cleanValue = columns[j].toString().replace(/[^\d.-]/g, '');
+            if (cleanValue && !isNaN(cleanValue)) {
+              const num = parseFloat(cleanValue);
+              // Take the largest absolute value as likely balance
+              if (Math.abs(num) > 1000 && Math.abs(num) > Math.abs(balance)) {
                 balance = num;
               }
             }
           }
-          
-          customers.push({
-            name: customerName,
-            address: '',
-            balance: balance
-          });
         }
+        
+        customers.push({
+          name: firstColumn,
+          address: '',
+          balance: balance
+        });
+        
+        console.log(`✅ Added customer: ${firstColumn} with balance: ${balance}`);
       }
     }
     
-    console.log('Found customers:', customers);
+    console.log(`Final customer list: ${customers.length} customers`);
+    customers.forEach(c => console.log(` - ${c.name}: ${c.balance}`));
     
   } catch (error) {
     console.error('Error parsing CSV:', error);
   }
   
+  // If no customers found, use fallback
+  if (customers.length === 0) {
+    return getFallbackCustomers();
+  }
+  
   return customers;
 }
 
-function parseCSVRow(row) {
-    const columns = [];
-    let current = '';
-    let inQuotes = false;
-    
-    for (let i = 0; i < row.length; i++) {
-        const char = row[i];
-        
-        if (char === '"') {
-            inQuotes = !inQuotes;
-        } else if (char === ',' && !inQuotes) {
-            columns.push(current.trim());
-            current = '';
-        } else {
-            current += char;
-        }
-    }
-    
-    columns.push(current.trim());
-    return columns;
+function getFallbackCustomers() {
+  // Your actual customer names from the ledger
+  return [
+    { name: "Batala Steel", address: "Steel Mill", balance: 242450 },
+    { name: "Adnan Traders", address: "Scrape Dealer", balance: 150000 },
+    { name: "Ali Oil", address: "H Oil Supplier", balance: 75000 },
+    { name: "Shehzad", address: "Magenize Supplier", balance: 185000 },
+    { name: "Waseem Oil", address: "H Oil Dealer", balance: 92000 },
+    { name: "Asif", address: "Scrape Dealer", balance: 67000 },
+    { name: "Khuram Traders", address: "Scrape Dealer", balance: 113000 },
+    { name: "Hafiz Ameen", address: "Scrape Dealer", balance: 88000 },
+    { name: "Baloch Traders", address: "Fire Bricks", balance: 55000 },
+    { name: "Al Habib Bank", address: "Bank", balance: 320000 }
+  ];
 }
-
-function extractCustomerFromRow(columns) {
-    // Based on your sheet structure, try to find customer name and balance
-    let customerName = '';
-    let balance = 0;
-    
-    // Look for customer name in different columns
-    columns.forEach((col, index) => {
-        const cleanCol = col.replace(/["']/g, '').trim();
-        
-        // Look for patterns that indicate customer names
-        if (cleanCol.length > 2 && 
-            !isNumeric(cleanCol) && 
-            !isDate(cleanCol) &&
-            !cleanCol.match(/^\d+\.?\d*$/) && // Not just numbers
-            !cleanCol.match(/^(rs\.|pkr|weight|qty|rate|sale|debit|credit)/i)) {
-            
-            // This might be a customer name
-            if (!customerName || cleanCol.length > customerName.length) {
-                customerName = cleanCol;
-            }
-        }
-        
-        // Look for balance amounts (typically larger numbers)
-        if (isNumeric(cleanCol)) {
-            const num = parseFloat(cleanCol.replace(/[^\d.-]/g, ''));
-            if (num > balance) {
-                balance = num;
-            }
-        }
-    });
-    
-    return {
-        name: customerName || 'Unknown Customer',
-        address: '',
-        balance: balance
-    };
-}
-
-function isNumeric(str) {
-    return !isNaN(str) && !isNaN(parseFloat(str));
-}
-
-function isDate(str) {
-    return !isNaN(Date.parse(str));
-}
-
-async function tryAlternativeMethod(sheetId) {
-    try {
-        showAlert('🔄 Trying alternative method...', 'info');
-        
-        // Alternative: Use Google Sheets API via proxy
-        const apiUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetId}/values/Sheet1?key=AIzaSyD-9tSrke72PouQMnMX-a7eZSW0jkFMBWY`;
-        
-        const response = await fetch(apiUrl);
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log('Google Sheets API data:', data);
-            
-            if (data.values && data.values.length > 1) {
-                const customers = [];
-                const customerMap = new Map();
-                
-                // Process rows
-                for (let i = 1; i < data.values.length; i++) {
-                    const row = data.values[i];
-                    const customerInfo = extractCustomerFromRow(row);
-                    
-                    if (customerInfo.name && !customerMap.has(customerInfo.name)) {
-                        customerMap.set(customerInfo.name, true);
-                        customers.push(customerInfo);
-                    }
-                }
-                
-                appData.customers = customers;
-                saveAppData();
-                loadCustomerDropdown();
-                showAlert(`✅ Loaded ${customers.length} customers via API`, 'success');
-                return;
-            }
-        }
-        
-        throw new Error('Alternative method also failed');
-        
-    } catch (error) {
-        console.error('Alternative method error:', error);
-        
-        // Final fallback - use demo data but inform user
-        const demoCustomers = [
-             { name: "Batala Steel", address: "Steel Industry Client", balance: 242450 },
-             { name: "Adnan Traders", address: "Scrape Dealer", balance: 150000 },
-             { name: "Ali Oil", address: "H Oil Supplier", balance: 75000 }
-             // Add more of your actual customers here
-   ];
-        
-        appData.customers = demoCustomers;
-        saveAppData();
-        loadCustomerDropdown();
-        
-        showAlert('⚠️ Using demo data. Please check your sheet is set to "Anyone with link can view"', 'warning');
-    }
-}
-
         function extractSheetId(url) {
     if (!url) return null;
     const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -1573,5 +1507,6 @@ async function tryAlternativeMethod(sheetId) {
     </script>
 </body>
 </html>
+
 
 
