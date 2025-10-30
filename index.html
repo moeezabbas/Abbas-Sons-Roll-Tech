@@ -571,9 +571,13 @@
             <button class="tab-btn" onclick="switchTab('settings')">
                 ⚙️ Settings
             </button>
-            <button class="tab-btn" onclick="">
-                🔄 Load Customers
+            <button class="tab-btn" onclick="syncWithGoogleSheets()">
+           🔄 Load Customers
             </button>
+            <button class="tab-btn" onclick="testConnection()">
+            🔧 Test Connection
+           </button>
+            
         </div>
 
         <!-- Create Invoice Tab -->
@@ -891,59 +895,125 @@
 // REAL-TIME SYNC WITH LEDGER
 // ============================================
 
+// ============================================
+// FIXED: REAL-TIME SYNC WITH LEDGER
+// Replace YOUR_WEB_APP_URL with actual URL from Step 2
+// ============================================
+
 async function syncWithGoogleSheets() {
-  showAlert('🔄 Testing connection...', 'info');
+  showAlert('🔄 Loading customers from ledger...', 'info');
   
-  // ⚠️ REPLACE THIS WITH YOUR ACTUAL SCRIPT ID
-  const webAppUrl = 'https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec';
+  // ⚠️ PASTE YOUR WEB APP URL HERE (from Step 2)
+  const webAppUrl = 'https://script.google.com/macros/s/AKfycbzXnkRCUraDeaUnvzrGTZA3btoBIjdxbi7O_kylDsaJDgnQRmZUYJYqQtujuRepfAu3mg/exec';
   
-  console.log('Trying to fetch from:', webAppUrl);
+  console.log('Fetching from:', webAppUrl);
   
   try {
-    // Add timestamp to avoid caching
+    // Add timestamp to prevent caching
     const urlWithTimestamp = webAppUrl + '?t=' + new Date().getTime();
-    console.log('Final URL:', urlWithTimestamp);
+    console.log('Request URL:', urlWithTimestamp);
     
-    const response = await fetch(urlWithTimestamp);
+    const response = await fetch(urlWithTimestamp, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+      redirect: 'follow'
+    });
+    
     console.log('Response status:', response.status);
     console.log('Response ok:', response.ok);
     
     if (!response.ok) {
-      throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
     
     const text = await response.text();
-    console.log('Raw response text:', text.substring(0, 500));
+    console.log('Response received, length:', text.length);
+    console.log('First 200 chars:', text.substring(0, 200));
     
     const data = JSON.parse(text);
     console.log('Parsed data:', data);
     
-    if (data.success && data.customers && data.customers.length > 0) {
+    if (data.success && data.customers) {
       appData.customers = data.customers;
       saveAppData();
       loadCustomerDropdown();
       
-      showAlert(`✅ Live sync! Loaded ${data.customers.length} customers`, 'success');
+      showAlert(`✅ Loaded ${data.customers.length} customers from ledger!`, 'success');
       document.getElementById('syncStatus').textContent = `Synced ${new Date().toLocaleTimeString()}`;
       
+      console.log('✅ Successfully loaded customers:', data.customers.length);
+      
     } else {
-      throw new Error(data.message || 'No customers in response');
+      throw new Error(data.message || 'No customers returned');
     }
     
   } catch (error) {
-    console.error('❌ Full error:', error);
-    showAlert('❌ Sync failed: ' + error.message, 'danger');
+    console.error('❌ Sync Error:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack
+    });
     
-    // Open browser console to see detailed error
-    console.log('=== DEBUG INFO ===');
-    console.log('Web App URL:', webAppUrl);
-    console.log('Error details:', error);
+    showAlert('❌ Failed to load customers: ' + error.message, 'danger');
     
-    // Fallback to demo data
-    if (appData.customers.length === 0) {
-      loadFallbackCustomers();
-    }
+    // Show troubleshooting info
+    console.log('=== TROUBLESHOOTING ===');
+    console.log('1. Check Web App URL is correct');
+    console.log('2. Check Web App is deployed as "Anyone"');
+    console.log('3. Check Database sheet has customers');
+    console.log('4. Try redeploying the Web App');
+    
+    // Load demo customers as fallback
+    loadFallbackCustomers();
   }
+}
+
+// ============================================
+// FALLBACK DEMO CUSTOMERS (For testing)
+// ============================================
+function loadFallbackCustomers() {
+  console.log('Loading fallback demo customers...');
+  
+  appData.customers = [
+    { name: 'Batala Steel', address: 'Industrial Area', balance: 50000 },
+    { name: 'Adnan Traders', address: 'Market Road', balance: 25000 },
+    { name: 'Ali Oil', address: 'Main Street', balance: 15000 },
+    { name: 'Test Customer', address: 'Test Address', balance: 1000 }
+  ];
+  
+  saveAppData();
+  loadCustomerDropdown();
+  
+  showAlert('⚠️ Loaded 4 demo customers (Sync failed)', 'warning');
+}
+
+// ============================================
+// TEST CONNECTION (Add this button to HTML)
+// ============================================
+function testConnection() {
+  console.log('=== CONNECTION TEST ===');
+  
+  const webAppUrl = 'https://script.google.com/macros/s/YOUR_ACTUAL_WEB_APP_URL_HERE/exec';
+  
+  console.log('Testing URL:', webAppUrl);
+  
+  fetch(webAppUrl + '?t=' + new Date().getTime())
+    .then(response => {
+      console.log('✅ Connection successful!');
+      console.log('Status:', response.status);
+      return response.text();
+    })
+    .then(text => {
+      console.log('Response:', text);
+      const data = JSON.parse(text);
+      console.log('Customers found:', data.customers ? data.customers.length : 0);
+      alert('Connection Test: ' + (data.success ? 'SUCCESS ✅' : 'FAILED ❌') + '\nCustomers: ' + (data.customers ? data.customers.length : 0));
+    })
+    .catch(error => {
+      console.error('❌ Connection failed:', error);
+      alert('Connection Test FAILED ❌\n' + error.message);
+    });
 }
         function extractSheetId(url) {
     if (!url) return null;
@@ -1398,6 +1468,7 @@ async function syncWithGoogleSheets() {
     </script>
 </body>
 </html>
+
 
 
 
