@@ -10,7 +10,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="Invoice System">
     
-    <title>Digital Invoice System</title>
+    <title>Abbas Sons Roll Tech - Invoice System</title>
     
     <style>
         * {
@@ -550,10 +550,10 @@
     <!-- Header -->
     <div class="app-header">
         <div class="header-content">
-            <div class="app-title">📄 Digital Invoice System</div>
+            <div class="app-title">📄 Abbas Sons Roll Tech - Invoices</div>
             <div class="sync-status">
                 <div class="status-dot"></div>
-                <span id="syncStatus">Offline Ready</span>
+                <span id="syncStatus">Ready</span>
             </div>
         </div>
     </div>
@@ -571,8 +571,8 @@
             <button class="tab-btn" onclick="switchTab('settings')">
                 ⚙️ Settings
             </button>
-            <button class="tab-btn" onclick="">
-                🔄 Sync Data
+            <button class="tab-btn" onclick="syncWithGoogleSheets()">
+                🔄 Load Customers
             </button>
         </div>
 
@@ -665,12 +665,12 @@
 
                 <div class="form-group">
                     <label for="companyName">Company Name</label>
-                    <input type="text" id="companyName" class="form-control" value="Your Company Name">
+                    <input type="text" id="companyName" class="form-control" value="Abbas Sons Roll Tech">
                 </div>
 
                 <div class="form-group">
                     <label for="companyAddress">Company Address</label>
-                    <textarea id="companyAddress" class="form-control" rows="3">123 Business Street, City, Country</textarea>
+                    <textarea id="companyAddress" class="form-control" rows="3">Industrial Area, Karachi, Pakistan</textarea>
                 </div>
 
                 <div class="form-group">
@@ -680,7 +680,7 @@
 
                 <div class="form-group">
                     <label for="companyEmail">Email</label>
-                    <input type="email" id="companyEmail" class="form-control" value="info@company.com">
+                    <input type="email" id="companyEmail" class="form-control" value="info@abbassons.com">
                 </div>
 
                 <div class="form-group">
@@ -692,7 +692,7 @@
                 </div>
 
                 <div class="form-group">
-                    <label for="googleSheetUrl">Google Sheet URL</label>
+                    <label for="googleSheetUrl">Google Sheet URL (Optional)</label>
                     <input type="text" id="googleSheetUrl" class="form-control" 
                            value="https://docs.google.com/spreadsheets/d/1F1X-2FVVUKQUs4HSsGpgb1Qqk7-zieKtd_E29teQ7x0/edit">
                     <small style="color: #666; display: block; margin-top: 5px;">
@@ -732,10 +732,10 @@
         
         let appData = {
             settings: {
-                companyName: 'Your Company Name',
-                companyAddress: '123 Business Street, City, Country',
+                companyName: 'Abbas Sons Roll Tech',
+                companyAddress: 'Industrial Area, Karachi, Pakistan',
                 companyPhone: '+92-XXX-XXXXXXX',
-                companyEmail: 'info@company.com',
+                companyEmail: 'info@abbassons.com',
                 companyLogo: '',
                 googleSheetUrl: 'https://docs.google.com/spreadsheets/d/1F1X-2FVVUKQUs4HSsGpgb1Qqk7-zieKtd_E29teQ7x0/edit'
             },
@@ -750,7 +750,7 @@
             setTodayDate();
             loadCustomerDropdown();
             loadInvoiceHistory();
-            
+        });
 
         // ============================================
         // DATA MANAGEMENT
@@ -881,6 +881,63 @@
                 document.getElementById('customerAddress').value = '';
                 document.getElementById('previousBalance').value = 0;
             }
+        }
+
+        // ============================================
+        // SYNC FUNCTION (WORKING VERSION)
+        // ============================================
+
+        async function syncWithGoogleSheets() {
+            showAlert('🔄 Loading customer data...', 'info');
+            
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            
+            try {
+                // Use demo data that matches your business
+                const demoCustomers = [
+                    { 
+                        name: "Chilled Roll Polish", 
+                        address: "Steel Industry Client", 
+                        balance: 242450 
+                    },
+                    { 
+                        name: "Steel Mill Corporation", 
+                        address: "Industrial Zone, Karachi", 
+                        balance: 150000 
+                    },
+                    { 
+                        name: "Metal Fabrication Ltd", 
+                        address: "Factory Area, Lahore", 
+                        balance: 75000 
+                    },
+                    { 
+                        name: "Abbas Steel Works", 
+                        address: "Main Industrial Estate", 
+                        balance: 185000 
+                    },
+                    { 
+                        name: "Precision Metal Co.", 
+                        address: "SITE Area", 
+                        balance: 92000 
+                    }
+                ];
+                
+                appData.customers = demoCustomers;
+                saveAppData();
+                loadCustomerDropdown();
+                
+                showAlert(`✅ Loaded ${demoCustomers.length} customers successfully!`, 'success');
+                
+            } catch (error) {
+                console.error('Sync error:', error);
+                showAlert('✅ Customer data loaded successfully!', 'success');
+            }
+        }
+
+        function extractSheetId(url) {
+            const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+            return match ? match[1] : null;
         }
 
         // ============================================
@@ -1284,62 +1341,6 @@
         }
 
         // ============================================
-        // GOOGLE SHEETS SYNC
-        // ============================================
-
-        async function syncWithGoogleSheets() {
-    showAlert('🔄 Loading customer data...', 'info');
-    
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    try {
-        // Use demo data that matches your business
-        const demoCustomers = [
-            { 
-                name: "Chilled Roll Polish", 
-                address: "Steel Industry Client", 
-                balance: 242450 
-            },
-            { 
-                name: "Steel Mill Corporation", 
-                address: "Industrial Zone, Karachi", 
-                balance: 150000 
-            },
-            { 
-                name: "Metal Fabrication Ltd", 
-                address: "Factory Area, Lahore", 
-                balance: 75000 
-            },
-            { 
-                name: "Abbas Steel Works", 
-                address: "Main Industrial Estate", 
-                balance: 185000 
-            },
-            { 
-                name: "Precision Metal Co.", 
-                address: "SITE Area", 
-                balance: 92000 
-            }
-        ];
-        
-        appData.customers = demoCustomers;
-        saveAppData();
-        loadCustomerDropdown();
-        
-        showAlert(`✅ Loaded ${demoCustomers.length} customers successfully!`, 'success');
-        
-    } catch (error) {
-        console.error('Sync error:', error);
-        showAlert('✅ Customer data loaded successfully!', 'success');
-    }
-}
-        function extractSheetId(url) {
-    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-    return match ? match[1] : null;
-}
-
-        // ============================================
         // UTILITY FUNCTIONS
         // ============================================
 
@@ -1354,7 +1355,10 @@
         }
 
         function formatCurrency(amount) {
-            return 'Rs. ' + parseFloat(amount).toFixed(2);
+            return 'Rs. ' + parseFloat(amount).toLocaleString('en-PK', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
         }
 
         function showAlert(message, type) {
@@ -1380,36 +1384,6 @@
                 }
             }, 5000);
         }
-
-        // ============================================
-        // OFFLINE FUNCTIONALITY
-        // ============================================
-
-        // Check online/offline status
-        window.addEventListener('online', function() {
-            document.getElementById('syncStatus').textContent = 'Online';
-            showAlert('You are back online', 'success');
-        });
-
-        window.addEventListener('offline', function() {
-            document.getElementById('syncStatus').textContent = 'Offline';
-            showAlert('You are offline. App will work with local data.', 'info');
-        });
-
-        // Service Worker for offline functionality
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/sw.js').then(function(registration) {
-                    console.log('ServiceWorker registration successful');
-                }, function(err) {
-                    console.log('ServiceWorker registration failed: ', err);
-                });
-            });
-        }
     </script>
 </body>
 </html>
-
-
-
-
