@@ -1294,53 +1294,87 @@
         // ============================================
 
         async function syncWithGoogleSheets() {
-            const url = appData.settings.googleSheetUrl;
-            const sheetId = extractSheetId(url);
-            
-            if (!sheetId) {
-                showAlert('Invalid Google Sheets URL', 'danger');
-                return;
-            }
-            
-            showAlert('Syncing with Google Sheets...', 'info');
-            
-            try {
-                // For demo purposes, we'll simulate data fetching
-                // In a real implementation, you would use Google Sheets API
-                const demoCustomers = [
-                    { name: "Ali Ahmed", address: "Karachi, Pakistan", balance: 1500.00 },
-                    { name: "Fatima Khan", address: "Lahore, Pakistan", balance: 0.00 },
-                    { name: "Usman Malik", address: "Islamabad, Pakistan", balance: 2500.75 },
-                    { name: "Ayesha Raza", address: "Rawalpindi, Pakistan", balance: 500.00 },
-                    { name: "Bilal Hassan", address: "Faisalabad, Pakistan", balance: 1200.50 }
-                ];
+    const url = appData.settings.googleSheetUrl;
+    const sheetId = extractSheetId(url);
+    
+    if (!sheetId) {
+        showAlert('Invalid Google Sheets URL', 'danger');
+        return;
+    }
+    
+    showAlert('Fetching customer data from your ledger...', 'info');
+    
+    try {
+        // Using Google Sheets JSON API
+        const apiUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/gviz/tq?tqx=out:json`;
+        
+        console.log('Fetching from:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error('Failed to fetch data');
+        }
+        
+        const text = await response.text();
+        console.log('Raw response:', text.substring(0, 200));
+        
+        // Clean the response (remove extra characters)
+        const jsonData = JSON.parse(text.replace(/^.*?{/, '{').replace(/\);$/, ''));
+        
+        const customers = [];
+        const rows = jsonData.table.rows;
+        
+        console.log('Total rows found:', rows.length);
+        
+        // Start from row 1 to skip header (assuming row 0 is header)
+        for (let i = 1; i < rows.length; i++) {
+            const row = rows[i];
+            if (row.c && row.c.length > 0) {
+                const customer = {
+                    name: row.c[0] ? (row.c[0].v || '') : '',
+                    address: row.c[1] ? (row.c[1].v || '') : '',
+                    balance: row.c[2] ? (parseFloat(row.c[2].v) || 0) : 0
+                };
                 
-                // Simulate API delay
-                await new Promise(resolve => setTimeout(resolve, 2000));
-                
-                appData.customers = demoCustomers;
-                saveAppData();
-                loadCustomerDropdown();
-                
-                showAlert('Successfully synced customer data from Google Sheets!', 'success');
-            } catch (error) {
-                console.error('Sync error:', error);
-                showAlert('Error syncing with Google Sheets. Using demo data.', 'danger');
-                
-                // Fallback to demo data
-                const demoCustomers = [
-                    { name: "Demo Customer", address: "Demo Address", balance: 1000.00 }
-                ];
-                appData.customers = demoCustomers;
-                saveAppData();
-                loadCustomerDropdown();
+                // Only add if customer has a name
+                if (customer.name && customer.name.trim() !== '') {
+                    customers.push(customer);
+                    console.log('Added customer:', customer);
+                }
             }
         }
+        
+        appData.customers = customers;
+        saveAppData();
+        loadCustomerDropdown();
+        
+        if (customers.length > 0) {
+            showAlert(`✅ Success! Loaded ${customers.length} customers from your ledger`, 'success');
+        } else {
+            showAlert('⚠️ No customer data found. Check your sheet format.', 'warning');
+        }
+        
+    } catch (error) {
+        console.error('Google Sheets sync error:', error);
+        showAlert('❌ Error fetching data. Using demo customers for now.', 'danger');
+        
+        // Fallback to demo data
+        const demoCustomers = [
+            { name: "Ali Ahmed", address: "Karachi, Pakistan", balance: 1500.00 },
+            { name: "Fatima Khan", address: "Lahore, Pakistan", balance: 0.00 },
+            { name: "Usman Malik", address: "Islamabad, Pakistan", balance: 2500.75 }
+        ];
+        appData.customers = demoCustomers;
+        saveAppData();
+        loadCustomerDropdown();
+    }
+}
 
         function extractSheetId(url) {
-            const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
-            return match ? match[1] : null;
-        }
+    // Extract sheet ID from Google Sheets URL
+    const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
+    return match ? match[1] : null;
+}
 
         // ============================================
         // UTILITY FUNCTIONS
@@ -1412,3 +1446,4 @@
     </script>
 </body>
 </html>
+
