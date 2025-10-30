@@ -571,7 +571,7 @@
             <button class="tab-btn" onclick="switchTab('settings')">
                 ⚙️ Settings
             </button>
-            <button class="tab-btn" onclick="syncWithGoogleSheets()">
+            <button class="tab-btn" onclick="">
                 🔄 Load Customers
             </button>
         </div>
@@ -887,173 +887,127 @@
         // SYNC FUNCTION (WORKING VERSION)
         // ============================================
 
-       async function syncWithGoogleSheets() {
-    showAlert('🔄 Connecting to your Google Sheets ledger...', 'info');
-    
-    const url = appData.settings.googleSheetUrl;
-    const sheetId = extractSheetId(url);
-    
-    if (!sheetId) {
-        showAlert('❌ Invalid Google Sheets URL', 'danger');
-        return;
-    }
-    
-    try {
-        // Method 1: Direct CSV export (most reliable)
-        const csvUrl = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv`;
-        
-        console.log('Fetching from:', csvUrl);
-        
-        const response = await fetch(csvUrl);
-        
-        if (!response.ok) {
-            throw new Error(`Failed to fetch: ${response.status}`);
-        }
-        
-        const csvText = await response.text();
-        console.log('CSV Data received:', csvText.substring(0, 500));
-        
-        // Parse CSV data
-        const customers = parseCSVData(csvText);
-        
-        if (customers.length === 0) {
-            throw new Error('No customer data found in CSV');
-        }
-        
-        appData.customers = customers;
-        saveAppData();
-        loadCustomerDropdown();
-        
-        showAlert(`✅ Success! Loaded ${customers.length} real customers from your ledger`, 'success');
-        
-    } catch (error) {
-        console.error('Google Sheets sync error:', error);
-        
-        // Try alternative method if first fails
-        await tryAlternativeMethod(sheetId);
-    }
-}
+       // ============================================
+// REAL-TIME SYNC WITH LEDGER
+// ============================================
 
-function parseCSVData(csvText) {
-  const customers = [];
-  const customerMap = new Map();
+async function syncWithGoogleSheets() {
+  showAlert('🔄 Connecting to your live ledger...', 'info');
+  
+  // ⚠️ REPLACE THIS WITH YOUR ACTUAL WEB APP URL ⚠️
+  const webAppUrl = 'https://script.google.com/macros/s/AKfycbwBtnFvO3F8Trp-ap7UgT4UgTjDnFxzMlqbO8k406IBRcEvDz-n9XRoh3PNTAb1jkVfCw/exec';
   
   try {
-    const rows = csvText.split('\n');
-    console.log('First few rows for debugging:');
-    for (let i = 0; i < Math.min(10, rows.length); i++) {
-      console.log(`Row ${i}: "${rows[i].substring(0, 100)}"`);
+    console.log('Fetching real-time customer data from:', webAppUrl);
+    
+    const response = await fetch(webAppUrl);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch: ${response.status}`);
     }
     
-    // Skip the first few rows that contain headers and titles
-    let startRow = 0;
-    for (let i = 0; i < Math.min(20, rows.length); i++) {
-      const row = rows[i].toLowerCase();
-      // Look for where customer data actually starts
-      if (row.includes('batala') || row.includes('adnan') || row.includes('ali oil') || 
-          (row.includes('customer') && !row.includes('customer name'))) {
-        startRow = i;
-        console.log(`Found customer data starting at row ${i}`);
-        break;
-      }
-    }
+    const data = await response.json();
+    console.log('Real-time data received:', data);
     
-    // Process rows looking for customer names
-    for (let i = startRow; i < rows.length; i++) {
-      const row = rows[i].trim();
-      if (!row) continue;
+    if (data.success && data.customers && data.customers.length > 0) {
+      // Update app data with real customers
+      appData.customers = data.customers;
+      saveAppData();
+      loadCustomerDropdown();
       
-      const columns = parseCSVRow(row);
-      console.log(`Row ${i} columns:`, columns);
+      showAlert(`✅ Live sync! Loaded ${data.customers.length} customers with current balances`, 'success');
       
-      if (columns.length === 0) continue;
+      // Update sync status with timestamp
+      const now = new Date().toLocaleTimeString();
+      document.getElementById('syncStatus').textContent = `Synced ${now}`;
       
-      // Look for customer name in first column
-      const firstColumn = columns[0] ? columns[0].trim() : '';
-      
-      // Skip if it's empty or clearly a header
-      if (!firstColumn || 
-          firstColumn === 'Customer Name' ||
-          firstColumn === 'CUSTOMER BALANCE SHEET' ||
-          firstColumn === 'BACKUP DATA' ||
-          firstColumn === 'Timestamp' ||
-          firstColumn === 'S.N' ||
-          firstColumn === 'Date' ||
-          firstColumn.includes('Total') ||
-          firstColumn.includes('Balance') ||
-          firstColumn === 'DR/CR SUMMARY REPORT') {
-        continue;
-      }
-      
-      // Skip if it looks like a number (serial number)
-      if (!isNaN(firstColumn) && firstColumn !== '') {
-        continue;
-      }
-      
-      // Skip if it's a date
-      if (isDate(firstColumn)) {
-        continue;
-      }
-      
-      // This might be a customer name!
-      if (firstColumn.length > 1 && !customerMap.has(firstColumn)) {
-        customerMap.set(firstColumn, true);
-        
-        // Try to find balance in subsequent columns
-        let balance = 0;
-        for (let j = 1; j < columns.length; j++) {
-          if (columns[j]) {
-            const cleanValue = columns[j].toString().replace(/[^\d.-]/g, '');
-            if (cleanValue && !isNaN(cleanValue)) {
-              const num = parseFloat(cleanValue);
-              // Take the largest absolute value as likely balance
-              if (Math.abs(num) > 1000 && Math.abs(num) > Math.abs(balance)) {
-                balance = num;
-              }
-            }
-          }
-        }
-        
-        customers.push({
-          name: firstColumn,
-          address: '',
-          balance: balance
-        });
-        
-        console.log(`✅ Added customer: ${firstColumn} with balance: ${balance}`);
-      }
+    } else {
+      throw new Error(data.message || 'No customer data received');
     }
-    
-    console.log(`Final customer list: ${customers.length} customers`);
-    customers.forEach(c => console.log(` - ${c.name}: ${c.balance}`));
     
   } catch (error) {
-    console.error('Error parsing CSV:', error);
+    console.error('Real-time sync error:', error);
+    showAlert('⚠️ Using cached data. Live sync failed: ' + error.message, 'warning');
+    
+    // Fallback to cached data
+    if (appData.customers.length === 0) {
+      loadFallbackCustomers();
+    }
   }
-  
-  // If no customers found, use fallback
-  if (customers.length === 0) {
-    return getFallbackCustomers();
-  }
-  
-  return customers;
 }
 
-function getFallbackCustomers() {
-  // Your actual customer names from the ledger
-  return [
-    { name: "Batala Steel", address: "Steel Mill", balance: 242450 },
-    { name: "Adnan Traders", address: "Scrape Dealer", balance: 150000 },
-    { name: "Ali Oil", address: "H Oil Supplier", balance: 75000 },
-    { name: "Shehzad", address: "Magenize Supplier", balance: 185000 },
-    { name: "Waseem Oil", address: "H Oil Dealer", balance: 92000 },
-    { name: "Asif", address: "Scrape Dealer", balance: 67000 },
-    { name: "Khuram Traders", address: "Scrape Dealer", balance: 113000 },
-    { name: "Hafiz Ameen", address: "Scrape Dealer", balance: 88000 },
-    { name: "Baloch Traders", address: "Fire Bricks", balance: 55000 },
-    { name: "Al Habib Bank", address: "Bank", balance: 320000 }
+function loadFallbackCustomers() {
+  // Fallback to demo data if no cached data
+  const fallbackCustomers = [
+    { name: "Batala Steel", address: "Steel Mill", balance: 242450, drCr: "DR" },
+    { name: "Adnan Traders", address: "Scrape Dealer", balance: 150000, drCr: "DR" },
+    { name: "Ali Oil", address: "H Oil Supplier", balance: 75000, drCr: "DR" },
+    { name: "Shehzad", address: "Magenize Supplier", balance: 185000, drCr: "DR" },
+    { name: "Waseem Oil", address: "H Oil Dealer", balance: 92000, drCr: "DR" }
   ];
+  
+  appData.customers = fallbackCustomers;
+  saveAppData();
+  loadCustomerDropdown();
 }
+
+function loadCustomerDropdown() {
+  const select = document.getElementById('customerSelect');
+  select.innerHTML = '<option value="">-- Select Customer --</option>';
+  
+  appData.customers.forEach((customer, index) => {
+    const option = document.createElement('option');
+    option.value = index;
+    
+    // Show balance in dropdown
+    const balanceText = formatCurrency(customer.balance);
+    const drCrSymbol = customer.drCr === 'CR' ? '🟢' : '🔴';
+    
+    option.textContent = `${customer.name} - ${balanceText} ${drCrSymbol}`;
+    option.title = `Balance: ${balanceText} (${customer.drCr})`;
+    
+    select.appendChild(option);
+  });
+  
+  // Update sync status display
+  const customerCount = appData.customers.length;
+  document.getElementById('syncStatus').textContent = `${customerCount} customers loaded`;
+}
+
+function loadCustomerData() {
+  const select = document.getElementById('customerSelect');
+  const index = select.value;
+  
+  if (index !== '') {
+    const customer = appData.customers[index];
+    document.getElementById('customerName').value = customer.name;
+    document.getElementById('customerAddress').value = customer.address || '';
+    document.getElementById('previousBalance').value = customer.balance || 0;
+    
+    // Show DR/CR status
+    const balanceField = document.getElementById('previousBalance');
+    if (customer.drCr === 'CR') {
+      balanceField.style.color = '#2e7d32';
+      balanceField.style.fontWeight = 'bold';
+    } else {
+      balanceField.style.color = '#c62828';
+      balanceField.style.fontWeight = 'bold';
+    }
+  } else {
+    document.getElementById('customerName').value = '';
+    document.getElementById('customerAddress').value = '';
+    document.getElementById('previousBalance').value = 0;
+    document.getElementById('previousBalance').style.color = '';
+    document.getElementById('previousBalance').style.fontWeight = '';
+  }
+}
+
+// Auto-sync every 5 minutes when on create tab
+setInterval(() => {
+  if (document.getElementById('createTab').style.display !== 'none') {
+    syncWithGoogleSheets();
+  }
+}, 5 * 60 * 1000);
         function extractSheetId(url) {
     if (!url) return null;
     const match = url.match(/\/spreadsheets\/d\/([a-zA-Z0-9-_]+)/);
@@ -1507,6 +1461,7 @@ function getFallbackCustomers() {
     </script>
 </body>
 </html>
+
 
 
 
